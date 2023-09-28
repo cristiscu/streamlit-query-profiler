@@ -22,7 +22,7 @@ def getGraph(rows):
         step = str(row['OPERATOR_TYPE'])
         nodes += (f'  n{nodeId} [\n'
             + f'    style="filled" shape="record" color="SkyBlue"\n'
-            + f'    fillcolor="#d3dcef:#ffffff" color="#716f64" penwidth="1"\n'
+            + f'    fillcolor="#d3dcef" color="#716f64" penwidth="1"\n'
             + f'    label=<<table style="rounded" border="0" cellborder="0" cellspacing="0" cellpadding="1">\n'
             + f'      <tr><td bgcolor="transparent" align="center"><font color="#000000"><b>{step}</b></font></td></tr>\n')
 
@@ -75,11 +75,14 @@ def getGraph(rows):
 
 @st.cache_data(show_spinner="Reading metadata...")
 def getQuery(queryId):
-    s = f"'{queryId}'" if len(queryId) > 0 else "last_query_id()"
+    s = f"'{queryId}'" if queryId is not None \
+        and queryId != 'None' \
+        and len(queryId) > 0 else "last_query_id()"
     query = f"select * from table(get_query_operator_stats({s}))"
-    #st.write(query)
-    return session.sql(query).collect()
-
+    rows = getSession().sql(query).collect()
+    if rows is None or len(rows) == 0:
+        raise Exception("No profile found!")
+    return rows
 
 def getSession():
     try:
@@ -99,23 +102,29 @@ def getSession():
 st.set_page_config(layout="wide")
 st.title("Custom Query Profiler")
 
-queryId = st.sidebar.text_input('Query ID')
-btn = st.sidebar.button("Profile")
+queryId = st.sidebar.text_input('Query ID', 
+    help="Enter a valid query ID, or leave empty to automatically use the last query ID")
+st.sidebar.button("Generate Profile")
 
-session = getSession()
-rows = getQuery(queryId)
+try:
+    rows = getQuery(queryId)
+except:
+    st.markdown(f"Enter a valid query ID to generate a custom query profile.")
+    st.stop()
+
 graph, lastQueryId = getGraph(rows)
 s = '' if len(queryId) > 0 else ' last'
 st.markdown(f"Generates a custom query profile graph for the{s} query ID **{{{lastQueryId}}}**")
 
 tabGraph, tabCode = st.tabs(["Query Profile Graph", "Generated DOT Script"])
-
 with tabGraph:
     st.caption("This is your custom query profile graph, with GraphViz.")
     st.graphviz_chart(graph, use_container_width=True)
 
 with tabCode:
     st.caption("This is the DOT script generated for your previous GraphViz chart.")
-    link = f'http://magjac.com/graphviz-visual-editor/?dot={urllib.parse.quote(graph)}'
-    st.link_button("Test this online!", link)
+    try:
+        link = f'http://magjac.com/graphviz-visual-editor/?dot={urllib.parse.quote(graph)}'
+        st.link_button("Test this online!", link)
+    except: pass
     st.code(graph, language="dot", line_numbers=True)

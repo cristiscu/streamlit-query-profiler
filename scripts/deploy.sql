@@ -8,7 +8,7 @@ CREATE STAGE stage
     directory = (enable=true)
     file_format = (type=CSV field_delimiter=None record_delimiter=None);
 
-PUT file://C:\Projects\streamlit-apps\streamlit_query_profiler\app.py @stage
+PUT file://C:\Projects\streamlit-apps\streamlit-query-profiler\app.py @stage
     overwrite=true auto_compress=false;
 
 CREATE STREAMLIT streamlit_query_profiler
